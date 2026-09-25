@@ -14,7 +14,6 @@ interface Props {
   onRemove: (name: string) => void;
   onAdd: (name: string) => void;
   onClosePreview: () => void;
-  onCustomMonster: () => void;
   onClearAll: () => void;
   onOpenRandom: () => void;
 }
@@ -88,7 +87,6 @@ export default function LibraryScreen(p: Props) {
       <div className="section-head">
         <h3>Library <span className="section-count">{libraryRows.length}</span></h3>
         <div className="section-tools">
-          <button className="btn outline small" onClick={p.onCustomMonster}>+ Custom Monster</button>
           <button className="btn outline small" disabled={libraryRows.length === 0} onClick={p.onClearAll}>Clear All</button>
         </div>
       </div>

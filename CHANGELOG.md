@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.2 — Party Sheet Congruency
+- Header matches OSE Character Sheets: title row with ?, gear, and + New; tabs below; same sizes, spacing, and tooltips.
+
 ## 0.3.1 — Topbar Icons
 - Settings is a gear; bold "?" and heavier gear to match OSE Character Sheets.
 

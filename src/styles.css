@@ -346,3 +346,32 @@ button.stat-chip:hover{ box-shadow:0 3px 8px rgba(0,0,0,0.35); transform:transla
 /* Match the character sheet's bold topbar icons */
 .icon-q{ font-family:'Alfa Slab One', serif; font-size:14px; line-height:1; }
 .icon-circle svg path, .icon-circle svg circle{ stroke-width:2.2; }
+
+/* ---------- Congruency with OSE Character Sheets (values copied from its styles.css) ---------- */
+.page{ padding:16px 18px 20px; }
+.btn{ padding:8px 10px; }
+h3{ font-size:19px; margin:0 0 8px; }
+.list-toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.list-toolbar h2{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:19px; text-transform:uppercase; margin:0; }
+.list-toolbar-right{ display:flex; align-items:center; gap:10px; }
+.help-btn{
+  width:22px; height:22px; border-radius:50%; border:1.5px solid var(--ink); background:#FCFBF8;
+  color:var(--ink); font-family:'Oswald',sans-serif; font-weight:700; font-size:12px; cursor:pointer;
+  padding:0; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.help-btn:hover{ background:var(--ink); color:var(--chip-text); }
+.gear-btn svg{ width:13px; height:13px; }
+.gear-btn svg path, .gear-btn svg circle{ fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
+.seg-toggle.tabs{ flex:none; margin-bottom:14px; }
+
+/* Delayed tooltips, same as the character sheet */
+[data-tip]{ position:relative; }
+[data-tip]::after{
+  content: attr(data-tip);
+  position:absolute; top:100%; left:50%; transform:translateX(-50%) translateY(6px);
+  background:var(--ink); color:var(--chip-text); font-family:'Oswald',sans-serif;
+  font-size:11px; font-weight:500; letter-spacing:0.02em; text-transform:none;
+  padding:5px 8px; white-space:nowrap; border-radius:3px; pointer-events:none;
+  opacity:0; z-index:50; transition: opacity 0s linear 0s;
+}
+[data-tip]:hover::after{ opacity:1; transition: opacity 0.15s ease-in 0.5s; }

@@ -97,7 +97,7 @@ export default function EditModal({ base, existingNames, onCancel, onSave }: Pro
   return (
     <Modal
       wide
-      title={base ? `New monster, based on ${base.name}` : "Custom Monster"}
+      title={base ? `New monster, based on ${base.name}` : "New Monster"}
       onClose={onCancel}
       footer={
         <>
