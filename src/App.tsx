@@ -8,14 +8,21 @@ import type { BannerData, Monster, Settings } from "./types";
 import EditModal from "./components/EditModal";
 import EncounterScreen from "./components/EncounterScreen";
 import LibraryScreen from "./components/LibraryScreen";
-import { AddModal, HelpModal, RollBanner, SettingsModal } from "./components/Modals";
+import { AddModal, ConfirmModal, HelpModal, RollBanner, SettingsModal } from "./components/Modals";
+import { BrandFooter } from "./components/Modal";
 import Popover from "./components/Popover";
 import RandomScreen from "./components/RandomScreen";
 
 type Screen = "library" | "encounter" | "random";
 
 const STARTER_NAMES = BASE_MONSTERS.map((m) => m.name);
-const DEFAULT_SETTINGS: Settings = { initiativeTracker: false, clash: false, rollTarget: "gm_only" };
+const DEFAULT_SETTINGS: Settings = {
+  initiativeTracker: false,
+  clash: false,
+  checkTarget: "gm_only",
+  hpTarget: "gm_only",
+  combatTarget: "everyone",
+};
 
 export default function App() {
   const [customs, setCustoms] = useLocal<Monster[]>("custom-monsters", []);
@@ -36,6 +43,7 @@ export default function App() {
   const [editBase, setEditBase] = useState<{ base: Monster | null } | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const [banner, setBanner] = useState<BannerData | null>(null);
   const [bannerShown, setBannerShown] = useState(false);
@@ -76,7 +84,7 @@ export default function App() {
   };
 
   const actions: Actions = {
-    rollTarget: settings.rollTarget,
+    targets: { check: settings.checkTarget, hp: settings.hpTarget, combat: settings.combatTarget },
     byName: (name) => byNameMap.get(name),
     isInLibrary: (name) => libraryNames.includes(name),
     addToLibrary: (name) => {
@@ -133,7 +141,13 @@ export default function App() {
             scrollNonce={scrollNonce}
             onToggleOpen={(name) => setOpenName((cur) => (cur === name ? null : name))}
             onPickSearch={(name) => viewInLibrary(name)}
-            onNewMonster={() => setEditBase({ base: null })}
+            onRemove={(name) => actions.removeFromLibrary(name)}
+            onClosePreview={() => {
+              if (openName === previewName) setOpenName(null);
+              setPreviewName(null);
+            }}
+            onCustomMonster={() => setEditBase({ base: null })}
+            onClearAll={() => setConfirmClear(true)}
             onOpenRandom={() => openRandom("library")}
           />
         )}
@@ -145,6 +159,8 @@ export default function App() {
           />
         )}
         {screen === "random" && <RandomScreen onBack={() => setScreen(randomFrom)} onAddEncounter={addEntry} />}
+
+        <BrandFooter />
       </div>
 
       {popover && (
@@ -173,7 +189,7 @@ export default function App() {
             } else {
               setAddBusy(true);
               try {
-                hp = (await rollHpFor(addTarget, qty, settings.rollTarget)).hp;
+                hp = (await rollHpFor(addTarget, qty, settings.hpTarget)).hp;
               } finally {
                 setAddBusy(false);
               }
@@ -196,6 +212,19 @@ export default function App() {
             setOpenName(m.name);
             setScreen("library");
             setScrollNonce((n) => n + 1);
+          }}
+        />
+      )}
+
+      {confirmClear && (
+        <ConfirmModal
+          title={`Remove all ${libraryNames.length} monsters from your library?`}
+          confirmLabel="Clear All"
+          onCancel={() => setConfirmClear(false)}
+          onConfirm={() => {
+            setLibraryNames([]);
+            setOpenName(null);
+            setConfirmClear(false);
           }}
         />
       )}

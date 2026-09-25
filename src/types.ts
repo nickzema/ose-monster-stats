@@ -50,7 +50,15 @@ export type RollTarget = "everyone" | "gm_only";
 export interface Settings {
   initiativeTracker: boolean;
   clash: boolean;
-  rollTarget: RollTarget;
+  checkTarget: RollTarget; // random encounter checks + Number Appearing
+  hpTarget: RollTarget; // HP rolls
+  combatTarget: RollTarget; // attacks, saves, morale
+}
+
+export interface Targets {
+  check: RollTarget;
+  hp: RollTarget;
+  combat: RollTarget;
 }
 
 export interface BannerData {

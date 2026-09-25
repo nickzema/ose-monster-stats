@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { BannerData, Monster, RollTarget } from "./types";
+import type { BannerData, Monster, Targets } from "./types";
 
 export type PopoverState =
   | { kind: "monster"; anchor: HTMLElement; name: string; pinned: boolean }
@@ -7,7 +7,7 @@ export type PopoverState =
   | { kind: "save"; anchor: HTMLElement; monsterName: string; label: string; target: number };
 
 export interface Actions {
-  rollTarget: RollTarget;
+  targets: Targets;
   byName: (name: string) => Monster | undefined;
   isInLibrary: (name: string) => boolean;
   addToLibrary: (name: string) => void;

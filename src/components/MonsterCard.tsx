@@ -45,13 +45,13 @@ function RollTag({ onClick, children }: { onClick: () => void; children: ReactNo
 
 export function MonsterCard({ m }: { m: Monster }) {
   const a = useActions();
-  const t = a.rollTarget;
+  const t = a.targets;
   const inLib = a.isInLibrary(m.name);
 
-  const na = (expr: string) =>
+  const na = (expr: string, where: "Dungeon" | "Wilderness") =>
     a.runRoll(async () => {
-      const { value, local } = await rollNa(expr, `${m.name} Number Appearing`, t);
-      return { label: "Number Appearing", num: value, detail: `Rolled ${expr}`, success: null, local };
+      const { value, local } = await rollNa(expr, `${m.name} Number Appearing ${where}`, t.check);
+      return { label: `Number Appearing (${where})`, num: value, detail: `Rolled ${expr}`, success: null, local };
     });
 
   const openSave = (e: MouseEvent<HTMLButtonElement>, key: SaveKey, label: string) => {
@@ -64,7 +64,7 @@ export function MonsterCard({ m }: { m: Monster }) {
       {m.flavor && <p className="flavor">{m.flavor}</p>}
       <CompactStats m={m} showBonus />
       <div className="statline">
-        <b>Att</b> {m.att} <RollTag onClick={() => a.runRoll(() => rollAttack(m, t))}>Roll</RollTag><br />
+        <b>Att</b> {m.att} <RollTag onClick={() => a.runRoll(() => rollAttack(m, t.combat))}>Roll</RollTag><br />
         <b>MV</b> {m.mv}<br />
         <b>SV</b>{" "}
         {SAVES.map(([k, label]) => (
@@ -73,11 +73,11 @@ export function MonsterCard({ m }: { m: Monster }) {
           </Fragment>
         ))}
         <br />
-        <b>ML</b> {m.ml} <RollTag onClick={() => a.runRoll(() => rollMorale(m, t))}>Check</RollTag><br />
+        <b>ML</b> {m.ml} <RollTag onClick={() => a.runRoll(() => rollMorale(m, t.combat))}>Check</RollTag><br />
         <b>AL</b> {m.al} &nbsp; <b>TT</b> {m.tt}<br />
-        <b>NA</b> {m.naDungeon} <RollTag onClick={() => na(m.naDungeon)}>Roll</RollTag>
-        {" "}&nbsp; ({m.naWild} <RollTag onClick={() => na(m.naWild)}>Roll</RollTag>)<br />
-        <b>HP</b> <RollTag onClick={() => a.runRoll(() => rollHpBanner(m, t))}>Roll ({hpFormula(m)})</RollTag>
+        <b>NA</b> {m.naDungeon} <RollTag onClick={() => na(m.naDungeon, "Dungeon")}>Roll</RollTag>
+        {" "}&nbsp; ({m.naWild} <RollTag onClick={() => na(m.naWild, "Wilderness")}>Roll</RollTag>)<br />
+        <b>HP</b> <RollTag onClick={() => a.runRoll(() => rollHpBanner(m, t.hp))}>Roll ({hpFormula(m)})</RollTag>
       </div>
 
       {m.abilities.map((ab, i) => (
@@ -97,10 +97,8 @@ export function MonsterCard({ m }: { m: Monster }) {
       )}
 
       <div className="card-actions">
-        {inLib ? (
-          <button className="btn text" onClick={(e) => { e.stopPropagation(); a.removeFromLibrary(m.name); }}>Remove from Library</button>
-        ) : (
-          <button className="btn text" onClick={(e) => { e.stopPropagation(); a.addToLibrary(m.name); }}>Add to Library</button>
+        {!inLib && (
+          <button className="btn outline" onClick={(e) => { e.stopPropagation(); a.addToLibrary(m.name); }}>Add to Library</button>
         )}
         <button className="btn" onClick={(e) => { e.stopPropagation(); a.openAdd(m); }}>Add to Encounter</button>
         <button className="btn outline" onClick={(e) => { e.stopPropagation(); a.openEdit(m); }}>Edit</button>

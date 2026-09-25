@@ -75,7 +75,7 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
         target={state.target}
         onRoll={(mod) => {
           a.closePopover();
-          a.runRoll(() => rollSave(m, state.label, state.target, mod, a.rollTarget));
+          a.runRoll(() => rollSave(m, state.label, state.target, mod, a.targets.combat));
         }}
       />
     );

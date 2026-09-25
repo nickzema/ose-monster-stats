@@ -2,6 +2,7 @@ import { useState } from "react";
 import { SPELL_LIST } from "../data/spells";
 import { parseHd } from "../rolls";
 import type { Ability, Monster, SaveKey } from "../types";
+import Modal from "./Modal";
 
 export const BLANK_MONSTER: Monster = {
   name: "", hd: "1", hpDice: { n: 1, mod: 0 }, avgHp: 4, ac: 9, acAsc: 10, att: "1 x weapon (1d6)", dmg: "1d6",
@@ -94,9 +95,17 @@ export default function EditModal({ base, existingNames, onCancel, onSave }: Pro
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-box wide">
-        <p className="modal-message">{base ? `New monster, based on ${base.name}` : "New Monster"}</p>
+    <Modal
+      wide
+      title={base ? `New monster, based on ${base.name}` : "Custom Monster"}
+      onClose={onCancel}
+      footer={
+        <>
+          <button className="btn text" onClick={onCancel}>Cancel</button>
+          <button className="btn" onClick={save}>Save Monster</button>
+        </>
+      }
+    >
         {error && <p className="caption" style={{ color: "var(--danger)", margin: "-4px 0 10px" }}>{error}</p>}
 
         <div className="field"><p className="field-label">Name</p><input value={f.name} onChange={set("name")} /></div>
@@ -107,7 +116,7 @@ export default function EditModal({ base, existingNames, onCancel, onSave }: Pro
         </div>
         <div className="field"><p className="field-label">Attack</p><input value={f.att} onChange={set("att")} /></div>
         <div className="field-row">
-          <div className="field"><p className="field-label">Attack Damage Dice</p><input value={f.dmg} onChange={set("dmg")} /></div>
+          <div className="field"><p className="field-label">Damage</p><input value={f.dmg} onChange={set("dmg")} /></div>
           <div className="field"><p className="field-label">THAC0</p><input value={f.thac0} onChange={set("thac0")} /></div>
           <div className="field"><p className="field-label">Morale</p><input value={f.ml} onChange={set("ml")} /></div>
         </div>
@@ -191,11 +200,6 @@ export default function EditModal({ base, existingNames, onCancel, onSave }: Pro
           </div>
         </div>
 
-        <div className="modal-actions">
-          <button className="btn text" onClick={onCancel}>Cancel</button>
-          <button className="btn" onClick={save}>Save New Monster</button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

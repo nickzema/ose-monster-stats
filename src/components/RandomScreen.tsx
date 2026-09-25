@@ -5,12 +5,15 @@ import { roll } from "../dice";
 import { rollHpFor, rollNa } from "../rolls";
 import { DUNGEON_LEVEL_1, DUNGEON_NOT_LOADED, SUBTABLES, WILD_D8, WILD_NOT_LOADED } from "../data/tables";
 import type { Monster } from "../types";
+import Modal from "./Modal";
 import { CompactStats, D20Icon, MonsterLink } from "./MonsterCard";
 
 type TableKey = string; // "wild:<terrain>" | "dungeon:1"
+type Kind = "wild" | "dungeon";
 
 interface RandResult {
   chain: { d8?: number; subKey?: string; category?: string; d12?: number; d20?: number };
+  source: string; // table title
   monsterName: string;
   qty: number | null;
   hp: number[] | null;
@@ -21,61 +24,50 @@ interface Props {
   onAddEncounter: (m: Monster, hp: number[], hidden: boolean) => void;
 }
 
+// Loaded and not-yet-loaded terrains in one alphabetical list.
+const WILD_ROWS: { key: TableKey | null; label: string }[] = [
+  ...Object.entries(WILD_D8).map(([k, t]) => ({ key: `wild:${k}` as TableKey | null, label: t.label })),
+  ...WILD_NOT_LOADED.map((label) => ({ key: null, label })),
+].sort((x, y) => x.label.localeCompare(y.label));
+
+const DUNGEON_ROWS: { key: TableKey | null; label: string }[] = [
+  { key: "dungeon:1", label: "Level 1" },
+  ...DUNGEON_NOT_LOADED.map((label) => ({ key: null, label })),
+];
+
 export default function RandomScreen({ onBack, onAddEncounter }: Props) {
+  const a = useActions();
+  const [kind, setKind] = useState<Kind>("wild");
   const [tableKey, setTableKey] = useState<TableKey | null>(null);
   const [result, setResult] = useState<RandResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [lastKey, setLastKey] = useState<TableKey | null>(null);
 
-  const open = (key: TableKey | null) => {
-    setTableKey(key);
-    setResult(null);
-  };
-
-  return (
-    <div>
-      <button className="btn text back" onClick={onBack}>&larr; Back</button>
-      <div className="mon-card">
-        {tableKey === null ? (
-          <Picker onOpen={open} busy={busy} setBusy={setBusy} setResult={setResult} />
-        ) : (
-          <TableDetail tableKey={tableKey} onBack={() => open(null)} busy={busy} setBusy={setBusy} setResult={setResult} />
-        )}
-        {result && <ResultCard key={JSON.stringify(result)} result={result} onAddEncounter={onAddEncounter} />}
-      </div>
-    </div>
-  );
-}
-
-interface RollerProps {
-  busy: boolean;
-  setBusy: (b: boolean) => void;
-  setResult: (r: RandResult | null) => void;
-}
-
-/** d8 -> sub-table -> d12 (wilderness) or d20 (dungeon), then Number Appearing, then HP. */
-function useRollTable({ busy, setBusy, setResult }: RollerProps) {
-  const a = useActions();
-  return async (key: TableKey) => {
+  /** d8 -> sub-table -> d12 (wilderness) or d20 (dungeon), then Number Appearing, then HP. */
+  const rollTable = async (key: TableKey) => {
     if (busy) return;
     setBusy(true);
-    setResult(null);
+    setLastKey(key);
     try {
-      const t = a.rollTarget;
+      const t = a.targets;
       const [source, id] = key.split(":");
       let chain: RandResult["chain"];
       let monsterName: string;
       let naExpr: string | null;
+      let title: string;
 
       if (source === "wild") {
         const terrain = WILD_D8[id];
-        const out = await roll("1d8 #Terrain, 1d12 #Subtable", t, 2);
+        title = terrain.label;
+        const out = await roll("1d8 #Terrain, 1d12 #Subtable", t.check, 2);
         const [d8, d12] = out.rows;
         const [subKey, category] = terrain.rows[d8 - 1].split("-");
         monsterName = SUBTABLES[subKey][category][d12 - 1];
         chain = { d8, subKey, category, d12 };
         naExpr = a.byName(monsterName)?.naWild ?? null;
       } else {
-        const out = await roll("1d20 #Dungeon Level 1", t);
+        title = "Dungeon Level 1";
+        const out = await roll("1d20 #Dungeon Level 1", t.check);
         const d20 = out.total;
         const entry = DUNGEON_LEVEL_1[d20 - 1];
         monsterName = entry.name;
@@ -83,53 +75,71 @@ function useRollTable({ busy, setBusy, setResult }: RollerProps) {
         naExpr = entry.na;
       }
 
-      const qty = naExpr ? (await rollNa(naExpr, `${monsterName} Number Appearing`, t)).value : null;
+      const qty = naExpr ? (await rollNa(naExpr, `${monsterName} Number Appearing`, t.check)).value : null;
       const monster = a.byName(monsterName);
-      const hp = monster && qty ? (await rollHpFor(monster, qty, t)).hp : null;
-      setResult({ chain, monsterName, qty, hp });
+      const hp = monster && qty ? (await rollHpFor(monster, qty, t.hp)).hp : null;
+      setResult({ chain, source: title, monsterName, qty, hp });
     } finally {
       setBusy(false);
     }
   };
-}
-
-function Picker({ onOpen, ...roller }: { onOpen: (k: TableKey) => void } & RollerProps) {
-  const rollTable = useRollTable(roller);
-  const item = (key: TableKey, label: string) => (
-    <div className="picker-item" key={key}>
-      <span className="name-zone" onClick={() => onOpen(key)}><span className="name">{label}</span></span>
-      <span className="d20-zone" onClick={(e) => { e.stopPropagation(); rollTable(key); }}><D20Icon /></span>
-    </div>
-  );
-  const disabled = (label: string) => (
-    <div className="picker-item disabled" key={label} title="Not loaded yet">
-      <span className="name-zone"><span className="name">{label}</span></span>
-      <span className="d20-zone"><D20Icon /></span>
-    </div>
-  );
 
   return (
-    <>
-      <h3>Random Encounter</h3>
-      <div className="picker-cols">
-        <div className="picker-col">
-          <h4>Wilderness</h4>
-          {Object.entries(WILD_D8).map(([k, t]) => item(`wild:${k}`, t.label))}
-          {WILD_NOT_LOADED.map(disabled)}
-        </div>
-        <div className="picker-col">
-          <h4>Dungeon</h4>
-          {item("dungeon:1", "Level 1")}
-          {DUNGEON_NOT_LOADED.map(disabled)}
-        </div>
-      </div>
-    </>
+    <div>
+      {tableKey === null ? (
+        <>
+          <button className="btn text back" onClick={onBack}>&larr; Back</button>
+          <h3>Random Encounter</h3>
+          <div className="seg-toggle" style={{ flex: "none", marginBottom: 10 }}>
+            <button className={`seg-btn${kind === "wild" ? " active" : ""}`} onClick={() => setKind("wild")}>Wilderness</button>
+            <button className={`seg-btn${kind === "dungeon" ? " active" : ""}`} onClick={() => setKind("dungeon")}>Dungeon</button>
+          </div>
+          {(kind === "wild" ? WILD_ROWS : DUNGEON_ROWS).map((row) =>
+            row.key ? (
+              <div className="picker-item" key={row.label}>
+                <span className="name-zone" onClick={() => setTableKey(row.key)}>
+                  <span className="name">{row.label}</span>
+                  <span className="picker-sub">Table</span>
+                </span>
+                <button className="d20-zone" title="Roll" disabled={busy} onClick={() => rollTable(row.key as TableKey)}><D20Icon /></button>
+              </div>
+            ) : (
+              <div className="picker-item disabled" key={row.label}>
+                <span className="name-zone">
+                  <span className="name">{row.label}</span>
+                  <span className="picker-sub">Not loaded yet</span>
+                </span>
+                <span className="d20-zone"><D20Icon /></span>
+              </div>
+            )
+          )}
+        </>
+      ) : (
+        <TableDetail tableKey={tableKey} busy={busy} onBack={() => setTableKey(null)} onRoll={() => rollTable(tableKey)} />
+      )}
+
+      {result && (
+        <ResultModal
+          key={JSON.stringify(result)}
+          result={result}
+          busy={busy}
+          onClose={() => setResult(null)}
+          onReroll={() => {
+            setResult(null);
+            if (lastKey) rollTable(lastKey);
+          }}
+          onAddEncounter={(m, hp, hidden) => {
+            setResult(null);
+            onAddEncounter(m, hp, hidden);
+          }}
+        />
+      )}
+    </div>
   );
 }
 
-function TableDetail({ tableKey, onBack, ...roller }: { tableKey: TableKey; onBack: () => void } & RollerProps) {
+function TableDetail({ tableKey, busy, onBack, onRoll }: { tableKey: TableKey; busy: boolean; onBack: () => void; onRoll: () => void }) {
   const a = useActions();
-  const rollTable = useRollTable(roller);
   const [source, id] = tableKey.split(":");
 
   let title: string;
@@ -197,59 +207,85 @@ function TableDetail({ tableKey, onBack, ...roller }: { tableKey: TableKey; onBa
   }
 
   return (
-    <>
+    <div className="mon-card">
       <button className="btn text back" onClick={onBack}>&larr; Back to Terrains &amp; Levels</button>
-      <h3>{title}</h3>
+      <div className="table-head">
+        <h3>{title}</h3>
+        <button className="btn roll-btn" disabled={busy} onClick={onRoll}>
+          <D20Icon /> {busy ? "Rolling…" : "Roll"}
+        </button>
+      </div>
       {tables}
-      <button className="btn block rand-launch" disabled={roller.busy} onClick={() => rollTable(tableKey)}>
-        {roller.busy ? "Rolling…" : "Roll Randomly"}
-      </button>
-    </>
+    </div>
   );
 }
 
-function ResultCard({ result, onAddEncounter }: { result: RandResult; onAddEncounter: Props["onAddEncounter"] }) {
+function ResultModal({
+  result,
+  busy,
+  onClose,
+  onReroll,
+  onAddEncounter,
+}: {
+  result: RandResult;
+  busy: boolean;
+  onClose: () => void;
+  onReroll: () => void;
+  onAddEncounter: Props["onAddEncounter"];
+}) {
   const a = useActions();
   const [hidden, setHidden] = useState(false);
   const { chain, monsterName, qty, hp } = result;
   const monster = a.byName(monsterName);
 
   return (
-    <>
-      <p className="roll-chain">
+    <Modal
+      title={monsterName}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn text" disabled={busy} onClick={onReroll}>Reroll</button>
+          {monster && hp && !a.isInLibrary(monster.name) && (
+            <button className="btn outline" onClick={() => a.addToLibrary(monster.name)}>Add to Library</button>
+          )}
+          {monster && hp ? (
+            <button className="btn" onClick={() => onAddEncounter(monster, hp, hidden)}>Add to Encounter</button>
+          ) : (
+            <button className="btn" onClick={onClose}>Close</button>
+          )}
+        </>
+      }
+    >
+      <p className="roll-chain" style={{ marginTop: 0 }}>
+        {result.source}:{" "}
         {chain.d8 !== undefined ? (
           <>d8 &rarr; <b>{chain.d8}</b> (Sub-table {chain.subKey}, {chain.category}) &middot; d12 &rarr; <b>{chain.d12}</b></>
         ) : (
-          <>d20 &rarr; <b>{chain.d20}</b> (Dungeon Level 1)</>
+          <>d20 &rarr; <b>{chain.d20}</b></>
         )}
-        {" "}&rarr; <b>{monsterName}</b>
-        {qty !== null && <> &middot; NA &rarr; <b>{qty}</b></>}
       </p>
 
-      {!monster || !hp ? (
-        <div className="rand-card">
-          <h3>{monsterName}</h3>
-          <p className="not-loaded">
-            Full stats for this monster are not in the starter roster yet - only the name
-            {qty !== null ? " and Number Appearing" : ""} came from the real table.
-          </p>
-        </div>
-      ) : (
-        <div className="rand-card">
-          <h3>{monster.name}</h3>
+      <div className="result-stats">
+        <div className="compact-cell"><div className="compact-chip">Number Appearing</div><div className="compact-val big">{qty ?? "\u2014"}</div></div>
+      </div>
+
+      {monster && hp ? (
+        <>
           <CompactStats m={monster} />
-          <p className="caption" style={{ margin: "0 0 6px" }}>Rolled HP: {hp.join(", ")}</p>
-          <div className="rand-add-row">
-            <label className="hidden-check">
-              <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> Hidden from players
-            </label>
-            <button className="btn" onClick={() => onAddEncounter(monster, hp, hidden)}>Add to Encounter</button>
-            {!a.isInLibrary(monster.name) && (
-              <button className="btn text" onClick={() => a.addToLibrary(monster.name)}>Add to Library</button>
-            )}
+          <p className="field-label">HP</p>
+          <div className="enc-hp-list" style={{ marginTop: 0, marginBottom: 10 }}>
+            {hp.map((v, i) => <span className="enc-hp-chip static" key={i}>{v}</span>)}
           </div>
-        </div>
+          <label className="hidden-check">
+            <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> Hidden from players
+          </label>
+        </>
+      ) : (
+        <p className="not-loaded">
+          Full stats for this monster are not in the starter roster yet - only the name
+          {qty !== null ? " and Number Appearing" : ""} came from the real table.
+        </p>
       )}
-    </>
+    </Modal>
   );
 }

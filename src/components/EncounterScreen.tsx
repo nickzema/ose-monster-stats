@@ -43,8 +43,8 @@ export default function EncounterScreen({ encounter, onRemove, onOpenRandom }: P
             </div>
             {m && (
               <div className="enc-actions">
-                <button className="btn small outline" onClick={() => a.runRoll(() => rollAttack(m, a.rollTarget))}>Attack</button>
-                <button className="btn small outline" onClick={() => a.runRoll(() => rollMorale(m, a.rollTarget))}>Morale</button>
+                <button className="btn small outline" onClick={() => a.runRoll(() => rollAttack(m, a.targets.combat))}>Attack</button>
+                <button className="btn small outline" onClick={() => a.runRoll(() => rollMorale(m, a.targets.combat))}>Morale</button>
               </div>
             )}
             <div className="enc-hp-list">
