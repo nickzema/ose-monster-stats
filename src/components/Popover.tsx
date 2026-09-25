@@ -2,9 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useActions } from "../context";
 import type { PopoverState } from "../context";
-import { rollSave } from "../rolls";
-import type { EncounterEntry } from "../types";
-import { CompactStats } from "./MonsterCard";
+import { rollNa, rollSave } from "../rolls";
+import type { EncounterEntry, Monster } from "../types";
+import { CompactStats, SAVES } from "./MonsterCard";
 
 interface Props {
   state: PopoverState;
@@ -20,7 +20,11 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
   useLayoutEffect(() => {
     const place = () => {
       const r = state.anchor.getBoundingClientRect();
-      setPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - 250)), top: r.bottom + 6 });
+      const h = ref.current?.offsetHeight ?? 0;
+      const below = r.bottom + 6;
+      // Flip above the anchor when there isn't room below; never off the top.
+      const top = below + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : below;
+      setPos({ left: Math.max(8, Math.min(r.left, window.innerWidth - 250)), top });
     };
     place();
     window.addEventListener("scroll", place, true);
@@ -29,7 +33,7 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
     };
-  }, [state.anchor]);
+  }, [state]);
 
   // Pinned popovers close on any click outside them.
   useEffect(() => {
@@ -55,7 +59,7 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
         <CompactStats m={m} />
         {state.pinned && (
           <div className="rand-add-row">
-            <button className="btn text" onClick={() => { a.closePopover(); a.viewInLibrary(m.name); }}>View Card</button>
+            <button className="btn text" onClick={() => { a.closePopover(); a.openCard(m.name); }}>View Card</button>
             <button className="btn" onClick={() => { a.closePopover(); a.openAdd(m); }}>Add to Encounter</button>
           </div>
         )}
@@ -65,19 +69,45 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
     const entry = encounter.find((e) => e.id === state.entryId);
     const h = entry?.hp[state.index];
     if (!entry || !h) return null;
-    body = <HpEditor name={entry.monsterName} cur={h.cur} max={h.max} onSave={(v) => { onSetHp(entry.id, state.index, v); a.closePopover(); }} />;
-  } else {
+    body = (
+      <HpEditor
+        name={entry.monsterName}
+        cur={h.cur}
+        max={h.max}
+        onChange={(v) => onSetHp(entry.id, state.index, v)}
+        onDone={() => a.closePopover()}
+      />
+    );
+  } else if (state.kind === "saves") {
     const m = a.byName(state.monsterName);
     if (!m) return null;
     body = (
-      <SaveMod
-        label={state.label}
-        target={state.target}
-        onRoll={(mod) => {
+      <SavePicker
+        m={m}
+        onRoll={(label, target, mod) => {
           a.closePopover();
-          a.runRoll(() => rollSave(m, state.label, state.target, mod, a.targets.combat));
+          a.runRoll(() => rollSave(m, label, target, mod, a.targets.combat));
         }}
       />
+    );
+  } else {
+    const m = a.byName(state.monsterName);
+    if (!m) return null;
+    const roll = (where: "Dungeon" | "Wilderness", expr: string) => {
+      a.closePopover();
+      a.runRoll(async () => {
+        const { value, local } = await rollNa(expr, `${m.name} Number Appearing ${where}`, a.targets.check);
+        return { label: `Number Appearing (${where})`, num: value, detail: `Rolled ${expr}`, success: null, local };
+      });
+    };
+    body = (
+      <>
+        <h4>Number Appearing</h4>
+        <div className="pick-list">
+          <button className="pick-opt" onClick={() => roll("Dungeon", m.naDungeon)}><span>Dungeon</span><b>{m.naDungeon}</b></button>
+          <button className="pick-opt" onClick={() => roll("Wilderness", m.naWild)}><span>Wilderness</span><b>{m.naWild}</b></button>
+        </div>
+      </>
     );
   }
 
@@ -88,40 +118,56 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
   );
 }
 
-function HpEditor({ name, cur, max, onSave }: { name: string; cur: number; max: number; onSave: (v: number) => void }) {
+function HpEditor({ name, cur, max, onChange, onDone }: { name: string; cur: number; max: number; onChange: (v: number) => void; onDone: () => void }) {
   const [value, setValue] = useState(String(cur));
+  const commit = (raw: string) => {
+    setValue(raw);
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n)) onChange(Math.max(0, Math.min(max, n)));
+  };
   const n = parseInt(value, 10) || 0;
   return (
     <>
       <h4>{name} HP</h4>
       <div className="hp-editor">
-        <button className="btn small" onClick={() => setValue(String(Math.max(0, n - 1)))}>-1</button>
-        <input type="number" value={value} min={0} max={max} onChange={(e) => setValue(e.target.value)} />
-        <button className="btn small" onClick={() => setValue(String(Math.min(max, n + 1)))}>+1</button>
+        <button className="btn small" onClick={() => commit(String(Math.max(0, n - 1)))}>-1</button>
+        <input
+          type="number"
+          autoFocus
+          value={value}
+          min={0}
+          max={max}
+          onChange={(e) => commit(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onDone(); }}
+        />
+        <button className="btn small" onClick={() => commit(String(Math.min(max, n + 1)))}>+1</button>
         <span className="caption" style={{ margin: 0 }}>/ {max}</span>
       </div>
       <div className="rand-add-row">
-        <button className="btn text" onClick={() => setValue("0")}>Set defeated (0)</button>
-        <button className="btn" onClick={() => onSave(Math.max(0, Math.min(max, n)))}>Save</button>
+        <button className="btn text" onClick={() => commit("0")}>Set defeated (0)</button>
       </div>
     </>
   );
 }
 
-function SaveMod({ label, target, onRoll }: { label: string; target: number; onRoll: (mod: number) => void }) {
+function SavePicker({ m, onRoll }: { m: Monster; onRoll: (label: string, target: number, mod: number) => void }) {
   const [value, setValue] = useState("0");
-  const n = parseInt(value, 10) || 0;
+  const mod = parseInt(value, 10) || 0;
   return (
     <>
-      <h4>Save vs. {label}</h4>
-      <p className="caption" style={{ margin: "0 0 6px" }}>Target: {target}+. Any modifier for this monster?</p>
+      <h4>Saving Throw</h4>
       <div className="hp-editor">
-        <button className="btn small" onClick={() => setValue(String(n - 1))}>-1</button>
+        <span className="field-label" style={{ margin: 0 }}>Mod</span>
+        <button className="btn small" onClick={() => setValue(String(mod - 1))}>-1</button>
         <input type="number" value={value} onChange={(e) => setValue(e.target.value)} />
-        <button className="btn small" onClick={() => setValue(String(n + 1))}>+1</button>
+        <button className="btn small" onClick={() => setValue(String(mod + 1))}>+1</button>
       </div>
-      <div className="rand-add-row">
-        <button className="btn" onClick={() => onRoll(n)}>Roll</button>
+      <div className="pick-list">
+        {SAVES.map(([k, label]) => (
+          <button className="pick-opt" key={k} onClick={() => onRoll(label, m.sv[k], mod)}>
+            <span>{label}</span><b>{m.sv[k]}</b>
+          </button>
+        ))}
       </div>
     </>
   );

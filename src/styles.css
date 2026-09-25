@@ -308,3 +308,41 @@ button.d20-zone:disabled{ opacity:0.5; cursor:default; }
 }
 .modal-head + .modal-actions{ border-top:none; }
 .modal-body .not-loaded{ font-size:13px; line-height:1.4; }
+.bar-add{ flex-shrink:0; padding:5px 9px; font-size:10px; }
+
+/* ---------- v0.3: uniform stat chips, pickers, encounter info ---------- */
+.mon-popover{ z-index:2500; }
+.roll-banner{ z-index:3000; }
+.statline{ line-height:1.35; padding:7px 8px; display:flex; flex-direction:column; gap:4px; }
+.stat-row{ display:flex; align-items:center; gap:8px; }
+.stat-chip{
+  flex:0 0 34px; box-sizing:border-box; text-align:center; background:var(--ink); color:var(--chip-text);
+  font-family:'Oswald',sans-serif; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
+  padding:3px 0; border:none;
+}
+button.stat-chip{ cursor:pointer; transition:transform 0.12s, box-shadow 0.12s; }
+button.stat-chip:hover{ box-shadow:0 3px 8px rgba(0,0,0,0.35); transform:translateY(-1px); }
+.stat-val{ flex:1; min-width:0; white-space:pre-wrap; }
+.pick-list{ display:flex; flex-direction:column; gap:4px; margin-top:6px; }
+.pick-opt{
+  display:flex; justify-content:space-between; align-items:center; width:100%;
+  border:1.5px solid var(--ink); background:var(--paper); padding:5px 8px; cursor:pointer;
+  font-family:'Oswald',sans-serif; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;
+}
+.pick-opt b{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:13px; }
+.pick-opt:hover{ background:var(--ink); color:var(--chip-text); }
+.enc-id{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.enc-id .name{ font-weight:700; }
+.enc-id .sub{ font-family:'Oswald',sans-serif; font-size:10px; color:var(--caption); text-transform:uppercase; letter-spacing:0.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.modal-body .mon-card{ padding:0; border:none; }
+.enc-status{ display:flex; gap:6px; margin-bottom:8px; }
+.enc-status .status-box{ flex:1; min-width:0; }
+.hide-toggle{
+  flex-shrink:0; border:1.5px solid var(--ink); background:var(--paper); color:var(--caption); cursor:pointer;
+  font-family:'Oswald',sans-serif; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 6px;
+}
+.hide-toggle.on{ background:var(--caption); border-color:var(--caption); color:#fff; }
+.btn.text.danger-text{ color:var(--danger); }
+/* Match the character sheet's bold topbar icons */
+.icon-q{ font-family:'Alfa Slab One', serif; font-size:14px; line-height:1; }
+.icon-circle svg path, .icon-circle svg circle{ stroke-width:2.2; }

@@ -4,7 +4,7 @@ import type { BannerData, Monster, Targets } from "./types";
 export type PopoverState =
   | { kind: "monster"; anchor: HTMLElement; name: string; pinned: boolean }
   | { kind: "hp"; anchor: HTMLElement; entryId: string; index: number }
-  | { kind: "save"; anchor: HTMLElement; monsterName: string; label: string; target: number };
+  | { kind: "saves" | "na"; anchor: HTMLElement; monsterName: string };
 
 export interface Actions {
   targets: Targets;
@@ -15,6 +15,9 @@ export interface Actions {
   openAdd: (m: Monster) => void;
   openEdit: (m: Monster) => void;
   viewInLibrary: (name: string) => void;
+  openCard: (name: string) => void;
+  isCustom: (name: string) => boolean;
+  deleteCustom: (name: string) => void;
   openPopover: (p: PopoverState) => void;
   closePopover: () => void;
   isPopoverPinned: () => boolean;

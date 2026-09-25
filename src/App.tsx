@@ -9,7 +9,8 @@ import EditModal from "./components/EditModal";
 import EncounterScreen from "./components/EncounterScreen";
 import LibraryScreen from "./components/LibraryScreen";
 import { AddModal, ConfirmModal, HelpModal, RollBanner, SettingsModal } from "./components/Modals";
-import { BrandFooter } from "./components/Modal";
+import Modal, { BrandFooter } from "./components/Modal";
+import { MonsterCard } from "./components/MonsterCard";
 import Popover from "./components/Popover";
 import RandomScreen from "./components/RandomScreen";
 
@@ -44,6 +45,9 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClearEnc, setConfirmClearEnc] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [cardName, setCardName] = useState<string | null>(null);
 
   const [banner, setBanner] = useState<BannerData | null>(null);
   const [bannerShown, setBannerShown] = useState(false);
@@ -97,9 +101,18 @@ export default function App() {
       if (openName === name) setOpenName(null);
       showBanner({ label: "Library", num: "-1", detail: `${name} removed from your library (still searchable).`, success: null });
     },
-    openAdd: (m) => setAddTarget(m),
-    openEdit: (m) => setEditBase({ base: m }),
+    openAdd: (m) => {
+      setCardName(null);
+      setAddTarget(m);
+    },
+    openEdit: (m) => {
+      setCardName(null);
+      setEditBase({ base: m });
+    },
+    isCustom: (name) => customNames.has(name),
+    deleteCustom: (name) => setConfirmDelete(name),
     viewInLibrary,
+    openCard: (name) => setCardName(name),
     openPopover: (p) => setPopover(p),
     closePopover: () => setPopover(null),
     isPopoverPinned: () => pinnedRef.current,
@@ -123,10 +136,10 @@ export default function App() {
               </button>
             </div>
             <button className="icon-circle" title="Help" onClick={() => setShowHelp(true)}>
-              <svg viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4" /><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" /></svg>
+              <span className="icon-q">?</span>
             </button>
             <button className="icon-circle" title="Settings" onClick={() => setShowSettings(true)}>
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.1 5.9l-1.6 1.6M7.5 16.5l-1.6 1.6M18.1 18.1l-1.6-1.6M7.5 7.5 5.9 5.9" /></svg>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
             </button>
           </div>
         </div>
@@ -142,6 +155,7 @@ export default function App() {
             onToggleOpen={(name) => setOpenName((cur) => (cur === name ? null : name))}
             onPickSearch={(name) => viewInLibrary(name)}
             onRemove={(name) => actions.removeFromLibrary(name)}
+            onAdd={(name) => actions.addToLibrary(name)}
             onClosePreview={() => {
               if (openName === previewName) setOpenName(null);
               setPreviewName(null);
@@ -155,6 +169,8 @@ export default function App() {
           <EncounterScreen
             encounter={encounter}
             onRemove={(id) => updateEncounter((prev) => prev.filter((e) => e.id !== id))}
+            onToggleHidden={(id) => updateEncounter((prev) => prev.map((e) => (e.id === id ? { ...e, hidden: !e.hidden } : e)))}
+            onClear={() => setConfirmClearEnc(true)}
             onOpenRandom={() => openRandom("encounter")}
           />
         )}
@@ -212,6 +228,43 @@ export default function App() {
             setOpenName(m.name);
             setScreen("library");
             setScrollNonce((n) => n + 1);
+          }}
+        />
+      )}
+
+      {cardName && byNameMap.get(cardName) && (
+        <Modal wide title={cardName} onClose={() => setCardName(null)}>
+          <div className="mon-card">
+            <MonsterCard m={byNameMap.get(cardName) as Monster} inPopup />
+          </div>
+        </Modal>
+      )}
+
+      {confirmClearEnc && (
+        <ConfirmModal
+          title="Clear the encounter?"
+          confirmLabel="Clear Encounter"
+          onCancel={() => setConfirmClearEnc(false)}
+          onConfirm={() => {
+            updateEncounter(() => []);
+            setConfirmClearEnc(false);
+          }}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title={`Delete ${confirmDelete} permanently?`}
+          confirmLabel="Delete"
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => {
+            const name = confirmDelete;
+            setCustoms((prev) => prev.filter((m) => m.name !== name));
+            setLibraryNames((prev) => prev.filter((n) => n !== name));
+            if (openName === name) setOpenName(null);
+            if (previewName === name) setPreviewName(null);
+            if (cardName === name) setCardName(null);
+            setConfirmDelete(null);
           }}
         />
       )}

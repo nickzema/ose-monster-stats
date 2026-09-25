@@ -12,6 +12,7 @@ interface Props {
   onToggleOpen: (name: string) => void;
   onPickSearch: (name: string) => void;
   onRemove: (name: string) => void;
+  onAdd: (name: string) => void;
   onClosePreview: () => void;
   onCustomMonster: () => void;
   onClearAll: () => void;
@@ -107,7 +108,11 @@ export default function LibraryScreen(p: Props) {
                   <span className="name">{m.name}</span>
                   <span className="sub">AC {m.ac} [{m.acAsc}] &middot; XP {m.xp}</span>
                 </span>
-                {isPreview ? <span className="custom-badge">Not in Library</span> : isCustom ? <span className="custom-badge">Custom</span> : null}
+                {isPreview ? (
+                  <button className="btn small bar-add" onClick={(e) => { e.stopPropagation(); p.onAdd(m.name); }}>+ Add to Library</button>
+                ) : isCustom ? (
+                  <span className="custom-badge">Custom</span>
+                ) : null}
                 <button
                   className="row-x"
                   title={isPreview ? "Close" : "Remove from Library"}

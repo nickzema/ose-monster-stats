@@ -1,10 +1,9 @@
-import { Fragment } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { useActions } from "../context";
-import { hpFormula, rollAttack, rollHpBanner, rollMorale, rollNa } from "../rolls";
+import { hpFormula, rollAttack, rollHpBanner, rollMorale } from "../rolls";
 import type { Monster, SaveKey } from "../types";
 
-const SAVES: [SaveKey, string][] = [
+export const SAVES: [SaveKey, string][] = [
   ["D", "Death"],
   ["W", "Wands"],
   ["P", "Paralysis"],
@@ -35,28 +34,13 @@ export function CompactStats({ m, showBonus = false }: { m: Monster; showBonus?:
   );
 }
 
-function RollTag({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button className="roll-tag" onClick={(e) => { e.stopPropagation(); onClick(); }}>
-      {children}
-    </button>
-  );
-}
-
-export function MonsterCard({ m }: { m: Monster }) {
+export function MonsterCard({ m, showActions = true, inPopup = false }: { m: Monster; showActions?: boolean; inPopup?: boolean }) {
   const a = useActions();
   const t = a.targets;
-  const inLib = a.isInLibrary(m.name);
 
-  const na = (expr: string, where: "Dungeon" | "Wilderness") =>
-    a.runRoll(async () => {
-      const { value, local } = await rollNa(expr, `${m.name} Number Appearing ${where}`, t.check);
-      return { label: `Number Appearing (${where})`, num: value, detail: `Rolled ${expr}`, success: null, local };
-    });
-
-  const openSave = (e: MouseEvent<HTMLButtonElement>, key: SaveKey, label: string) => {
+  const pop = (e: MouseEvent<HTMLButtonElement>, kind: "saves" | "na") => {
     e.stopPropagation();
-    a.openPopover({ kind: "save", anchor: e.currentTarget, monsterName: m.name, label, target: m.sv[key] });
+    a.openPopover({ kind, anchor: e.currentTarget, monsterName: m.name });
   };
 
   return (
@@ -64,20 +48,16 @@ export function MonsterCard({ m }: { m: Monster }) {
       {m.flavor && <p className="flavor">{m.flavor}</p>}
       <CompactStats m={m} showBonus />
       <div className="statline">
-        <b>Att</b> {m.att} <RollTag onClick={() => a.runRoll(() => rollAttack(m, t.combat))}>Roll</RollTag><br />
-        <b>MV</b> {m.mv}<br />
-        <b>SV</b>{" "}
-        {SAVES.map(([k, label]) => (
-          <Fragment key={k}>
-            <button className="save-tag" onClick={(e) => openSave(e, k, label)}>{k}{m.sv[k]}</button>{" "}
-          </Fragment>
-        ))}
-        <br />
-        <b>ML</b> {m.ml} <RollTag onClick={() => a.runRoll(() => rollMorale(m, t.combat))}>Check</RollTag><br />
-        <b>AL</b> {m.al} &nbsp; <b>TT</b> {m.tt}<br />
-        <b>NA</b> {m.naDungeon} <RollTag onClick={() => na(m.naDungeon, "Dungeon")}>Roll</RollTag>
-        {" "}&nbsp; ({m.naWild} <RollTag onClick={() => na(m.naWild, "Wilderness")}>Roll</RollTag>)<br />
-        <b>HP</b> <RollTag onClick={() => a.runRoll(() => rollHpBanner(m, t.hp))}>Roll ({hpFormula(m)})</RollTag>
+        <StatRow chip="Att" onClick={() => a.runRoll(() => rollAttack(m, t.combat))}>{m.att}</StatRow>
+        <StatRow chip="MV">{m.mv}</StatRow>
+        <StatRow chip="SV" onClick={(e) => pop(e, "saves")}>
+          {SAVES.map(([k]) => `${k}${m.sv[k]}`).join("  ")}
+        </StatRow>
+        <StatRow chip="ML" onClick={() => a.runRoll(() => rollMorale(m, t.combat))}>{m.ml}</StatRow>
+        <StatRow chip="AL">{m.al}</StatRow>
+        <StatRow chip="TT">{m.tt}</StatRow>
+        <StatRow chip="NA" onClick={(e) => pop(e, "na")}>{m.naDungeon} ({m.naWild})</StatRow>
+        <StatRow chip="HP" onClick={() => a.runRoll(() => rollHpBanner(m, t.hp))}>{hpFormula(m)} (avg {m.avgHp})</StatRow>
       </div>
 
       {m.abilities.map((ab, i) => (
@@ -96,14 +76,33 @@ export function MonsterCard({ m }: { m: Monster }) {
         </div>
       )}
 
-      <div className="card-actions">
-        {!inLib && (
-          <button className="btn outline" onClick={(e) => { e.stopPropagation(); a.addToLibrary(m.name); }}>Add to Library</button>
-        )}
-        <button className="btn" onClick={(e) => { e.stopPropagation(); a.openAdd(m); }}>Add to Encounter</button>
-        <button className="btn outline" onClick={(e) => { e.stopPropagation(); a.openEdit(m); }}>Edit</button>
-      </div>
+      {showActions && (
+        <div className="card-actions">
+          {inPopup && !a.isInLibrary(m.name) && (
+            <button className="btn outline" onClick={(e) => { e.stopPropagation(); a.addToLibrary(m.name); }}>Add to Library</button>
+          )}
+          <button className="btn" onClick={(e) => { e.stopPropagation(); a.openAdd(m); }}>Add to Encounter</button>
+          <button className="btn outline" onClick={(e) => { e.stopPropagation(); a.openEdit(m); }}>Edit</button>
+          {a.isCustom(m.name) && (
+            <button className="btn text danger-text" onClick={(e) => { e.stopPropagation(); a.deleteCustom(m.name); }}>Delete</button>
+          )}
+        </div>
+      )}
     </>
+  );
+}
+
+/** One stat line: a black label chip (clickable when the stat rolls) and its value. */
+function StatRow({ chip, onClick, children }: { chip: string; onClick?: (e: MouseEvent<HTMLButtonElement>) => void; children: ReactNode }) {
+  return (
+    <div className="stat-row">
+      {onClick ? (
+        <button className="stat-chip roll" onClick={(e) => { e.stopPropagation(); onClick(e); }}>{chip}</button>
+      ) : (
+        <span className="stat-chip">{chip}</span>
+      )}
+      <span className="stat-val">{children}</span>
+    </div>
   );
 }
 

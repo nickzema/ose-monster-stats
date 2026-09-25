@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 — Topbar Icons
+- Settings is a gear; bold "?" and heavier gear to match OSE Character Sheets.
+
+## 0.3.0 — Card & Encounter Upgrades
+- Card stats as uniform black chips; SV opens a save picker with modifier, NA picks Dungeon/Wilderness.
+- Encounter: card popup from the magnifier, Save button, AC/THAC0/MV/ML line, defeated XP tally,
+  Visible/Hidden toggle, Clear Encounter.
+- Table links: View Card opens the card popup instead of the Library.
+- "Add to Library" moved onto the search-preview bar; custom monsters can be deleted.
+- HP chips save as you edit; popups flip above when there's no room below.
+
 ## 0.2.0
 - All windows: × close, Esc / click-outside to close, Cancel/Save always visible.
 - Library: header with count, + Custom Monster, Clear All (with confirm); alphabetical;
