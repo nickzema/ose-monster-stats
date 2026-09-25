@@ -1,0 +1,15 @@
+{
+  "name": "OSE Monster Stat Card",
+  "version": "0.1.0",
+  "manifest_version": 1,
+  "description": "Old-School Essentials monster library, random encounter roller, and session encounter tracker.",
+  "author": "Nick",
+  "icon": "/icon.svg",
+  "action": {
+    "title": "Monster Library",
+    "icon": "/icon.svg",
+    "popover": "/",
+    "height": 720,
+    "width": 440
+  }
+}
