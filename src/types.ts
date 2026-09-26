@@ -30,6 +30,10 @@ export interface Monster {
   flavor: string;
   abilities: Ability[];
   spells: string[];
+  acText?: string; // full AC wording when it isn't a single value (e.g. "7 [12] or 5 [14]")
+  mlText?: string; // morale with conditions (e.g. "6 (8 with leader)")
+  xpText?: string; // XP with leader values etc.
+  svNote?: string; // saves-as class/level from the book, e.g. "F1" or "4"
 }
 
 export interface HpState {

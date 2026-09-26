@@ -3,18 +3,23 @@ import type { ReactNode } from "react";
 import { useActions } from "../context";
 import { roll } from "../dice";
 import { rollHpFor, rollNa } from "../rolls";
-import { DUNGEON_LEVEL_1, DUNGEON_NOT_LOADED, SUBTABLES, WILD_D8, WILD_NOT_LOADED } from "../data/tables";
+import { DUNGEON_LEVELS, SUBTABLES, WILD_TERRAINS } from "../data/tables";
+import { resolveTableName } from "../resolve";
 import type { Monster } from "../types";
 import Modal from "./Modal";
 import { CompactStats, D20Icon, MonsterLink } from "./MonsterCard";
 
-type TableKey = string; // "wild:<terrain>" | "dungeon:1"
+type TableKey = string; // "wild:<terrain label>" | "dungeon:<level>"
 type Kind = "wild" | "dungeon";
 
 interface RandResult {
-  chain: { d8?: number; subKey?: string; category?: string; d12?: number; d20?: number };
-  source: string; // table title
-  monsterName: string;
+  chainText: ReactNode;
+  cell: string; // the table's own wording
+  monsterName: string | null; // resolved entry, once known
+  options: string[]; // entries the DM chooses between (e.g. kinds of shark)
+  pickedBy: string | null; // e.g. "Heads 1d8+4 → 9"
+  npc: boolean;
+  naExpr: string | null;
   qty: number | null;
   hp: number[] | null;
 }
@@ -24,16 +29,13 @@ interface Props {
   onAddEncounter: (m: Monster, hp: number[], hidden: boolean) => void;
 }
 
-// Loaded and not-yet-loaded terrains in one alphabetical list.
-const WILD_ROWS: { key: TableKey | null; label: string }[] = [
-  ...Object.entries(WILD_D8).map(([k, t]) => ({ key: `wild:${k}` as TableKey | null, label: t.label })),
-  ...WILD_NOT_LOADED.map((label) => ({ key: null, label })),
-].sort((x, y) => x.label.localeCompare(y.label));
-
-const DUNGEON_ROWS: { key: TableKey | null; label: string }[] = [
-  { key: "dungeon:1", label: "Level 1" },
-  ...DUNGEON_NOT_LOADED.map((label) => ({ key: null, label })),
-];
+const WILD_ROWS = Object.keys(WILD_TERRAINS).sort((x, y) => x.localeCompare(y));
+const DUNGEON_ROWS = Object.keys(DUNGEON_LEVELS);
+const levelLabel = (k: string) => k.replace("-", "\u2013");
+const splitKey = (key: TableKey) => {
+  const i = key.indexOf(":");
+  return [key.slice(0, i), key.slice(i + 1)] as const;
+};
 
 export default function RandomScreen({ onBack, onAddEncounter }: Props) {
   const a = useActions();
@@ -43,46 +45,75 @@ export default function RandomScreen({ onBack, onAddEncounter }: Props) {
   const [busy, setBusy] = useState(false);
   const [lastKey, setLastKey] = useState<TableKey | null>(null);
 
-  /** d8 -> sub-table -> d12 (wilderness) or d20 (dungeon), then Number Appearing, then HP. */
+  /** Table dice -> entry -> (variant roll) -> Number Appearing -> HP. */
   const rollTable = async (key: TableKey) => {
     if (busy) return;
     setBusy(true);
     setLastKey(key);
     try {
       const t = a.targets;
-      const [source, id] = key.split(":");
-      let chain: RandResult["chain"];
-      let monsterName: string;
-      let naExpr: string | null;
-      let title: string;
+      const [source, id] = splitKey(key);
+      let cell: string;
+      let tableNa: string | null = null;
+      let chainText: ReactNode;
 
       if (source === "wild") {
-        const terrain = WILD_D8[id];
-        title = terrain.label;
         const out = await roll("1d8 #Terrain, 1d12 #Subtable", t.check, 2);
         const [d8, d12] = out.rows;
-        const [subKey, category] = terrain.rows[d8 - 1].split("-");
-        monsterName = SUBTABLES[subKey][category][d12 - 1];
-        chain = { d8, subKey, category, d12 };
-        naExpr = a.byName(monsterName)?.naWild ?? null;
+        const [subKey, category] = WILD_TERRAINS[id][d8 - 1].split("-");
+        cell = SUBTABLES[subKey][category][d12 - 1];
+        chainText = (
+          <>{id}: d8 &rarr; <b>{d8}</b> (Sub-table {subKey}, {category}) &middot; d12 &rarr; <b>{d12}</b></>
+        );
       } else {
-        title = "Dungeon Level 1";
-        const out = await roll("1d20 #Dungeon Level 1", t.check);
-        const d20 = out.total;
-        const entry = DUNGEON_LEVEL_1[d20 - 1];
-        monsterName = entry.name;
-        chain = { d20 };
-        naExpr = entry.na;
+        const out = await roll(`1d20 #Dungeon ${id}`, t.check);
+        const entry = DUNGEON_LEVELS[id][out.total - 1];
+        cell = entry.name;
+        tableNa = entry.na;
+        chainText = <>Dungeon {levelLabel(id)}: d20 &rarr; <b>{out.total}</b></>;
       }
 
-      const qty = naExpr ? (await rollNa(naExpr, `${monsterName} Number Appearing`, t.check)).value : null;
-      const monster = a.byName(monsterName);
-      const hp = monster && qty ? (await rollHpFor(monster, qty, t.hp)).hp : null;
-      setResult({ chain, source: title, monsterName, qty, hp });
+      const r = resolveTableName(cell, a.byName);
+      let monsterName: string | null = null;
+      let options: string[] = [];
+      let pickedBy: string | null = null;
+      if (r.kind === "one") monsterName = r.name;
+      if (r.kind === "pick") options = r.names;
+      if (r.kind === "dice") {
+        const v = (await roll(`${r.dice} #${cell.replace(/[+\-*/,()#]/g, " ")}`, t.check)).total;
+        monsterName = r.names[Math.max(0, Math.min(r.names.length - 1, v - r.min))];
+        pickedBy = `${r.dice} \u2192 ${v}`;
+      }
+
+      // Number Appearing: the dungeon table's own value, or the monster's wilderness value.
+      // (When the DM still has to pick which kind, wilderness NA waits for that choice.)
+      const naExpr = tableNa ?? (monsterName ? a.byName(monsterName)?.naWild ?? null : null);
+      const qty = naExpr ? Math.max(1, (await rollNa(naExpr, `${cell} Number Appearing`, t.check)).value) : null;
+      const m = monsterName ? a.byName(monsterName) : undefined;
+      const hp = m && qty ? (await rollHpFor(m, qty, t.hp)).hp : null;
+      setResult({ chainText, cell, monsterName, options, pickedBy, npc: r.kind === "npc", naExpr, qty, hp });
     } finally {
       setBusy(false);
     }
   };
+
+  /** The DM picked which entry a multi-option result means; roll its HP now. */
+  const choose = async (name: string) => {
+    if (!result) return;
+    const m = a.byName(name);
+    if (!m) return;
+    setBusy(true);
+    try {
+      const naExpr = result.naExpr ?? m.naWild;
+      const qty = result.qty ?? Math.max(1, (await rollNa(naExpr, `${name} Number Appearing`, a.targets.check)).value);
+      const hp = (await rollHpFor(m, qty, a.targets.hp)).hp;
+      setResult({ ...result, monsterName: name, naExpr, qty, hp });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rows = kind === "wild" ? WILD_ROWS.map((k) => ({ key: `wild:${k}`, label: k })) : DUNGEON_ROWS.map((k) => ({ key: `dungeon:${k}`, label: levelLabel(k) }));
 
   return (
     <div>
@@ -94,25 +125,15 @@ export default function RandomScreen({ onBack, onAddEncounter }: Props) {
             <button className={`seg-btn${kind === "wild" ? " active" : ""}`} onClick={() => setKind("wild")}>Wilderness</button>
             <button className={`seg-btn${kind === "dungeon" ? " active" : ""}`} onClick={() => setKind("dungeon")}>Dungeon</button>
           </div>
-          {(kind === "wild" ? WILD_ROWS : DUNGEON_ROWS).map((row) =>
-            row.key ? (
-              <div className="picker-item" key={row.label}>
-                <span className="name-zone" onClick={() => setTableKey(row.key)}>
-                  <span className="name">{row.label}</span>
-                  <span className="picker-sub">Table</span>
-                </span>
-                <button className="d20-zone" title="Roll" disabled={busy} onClick={() => rollTable(row.key as TableKey)}><D20Icon /></button>
-              </div>
-            ) : (
-              <div className="picker-item disabled" key={row.label}>
-                <span className="name-zone">
-                  <span className="name">{row.label}</span>
-                  <span className="picker-sub">Not loaded yet</span>
-                </span>
-                <span className="d20-zone"><D20Icon /></span>
-              </div>
-            )
-          )}
+          {rows.map((row) => (
+            <div className="picker-item" key={row.key}>
+              <span className="name-zone" onClick={() => setTableKey(row.key)}>
+                <span className="name">{row.label}</span>
+                <span className="picker-sub">Table</span>
+              </span>
+              <button className="d20-zone" title="Roll" disabled={busy} onClick={() => rollTable(row.key)}><D20Icon /></button>
+            </div>
+          ))}
         </>
       ) : (
         <TableDetail tableKey={tableKey} busy={busy} onBack={() => setTableKey(null)} onRoll={() => rollTable(tableKey)} />
@@ -120,10 +141,10 @@ export default function RandomScreen({ onBack, onAddEncounter }: Props) {
 
       {result && (
         <ResultModal
-          key={JSON.stringify(result)}
           result={result}
           busy={busy}
           onClose={() => setResult(null)}
+          onChoose={choose}
           onReroll={() => {
             setResult(null);
             if (lastKey) rollTable(lastKey);
@@ -140,15 +161,15 @@ export default function RandomScreen({ onBack, onAddEncounter }: Props) {
 
 function TableDetail({ tableKey, busy, onBack, onRoll }: { tableKey: TableKey; busy: boolean; onBack: () => void; onRoll: () => void }) {
   const a = useActions();
-  const [source, id] = tableKey.split(":");
+  const [source, id] = splitKey(tableKey);
 
   let title: string;
   let tables: ReactNode;
 
   if (source === "wild") {
-    const terrain = WILD_D8[id];
-    title = terrain.label;
-    const usedKeys = [...new Set(terrain.rows.map((cell) => cell.split("-")[0]))];
+    const col = WILD_TERRAINS[id];
+    title = id;
+    const usedKeys = [...new Set(col.map((cell) => cell.split("-")[0]))];
     tables = (
       <>
         <div className="table-group">
@@ -156,7 +177,7 @@ function TableDetail({ tableKey, busy, onBack, onRoll }: { tableKey: TableKey; b
           <table className="turn-table compact">
             <thead><tr><th>Roll</th><th>Result</th></tr></thead>
             <tbody>
-              {terrain.rows.map((cell, i) => {
+              {col.map((cell, i) => {
                 const [subKey, category] = cell.split("-");
                 return <tr key={i}><td>{i + 1}</td><td>Sub-table {subKey}, {category}</td></tr>;
               })}
@@ -164,7 +185,8 @@ function TableDetail({ tableKey, busy, onBack, onRoll }: { tableKey: TableKey; b
           </table>
         </div>
         {usedKeys.map((subKey) => {
-          const categories = Object.keys(SUBTABLES[subKey]);
+          // Only the columns this terrain can actually reach.
+          const categories = Object.keys(SUBTABLES[subKey]).filter((c) => col.includes(`${subKey}-${c}`));
           return (
             <div className="table-group" key={subKey}>
               <h4>Sub-table {subKey}</h4>
@@ -185,21 +207,25 @@ function TableDetail({ tableKey, busy, onBack, onRoll }: { tableKey: TableKey; b
       </>
     );
   } else {
-    title = "Dungeon Level 1";
+    title = `Dungeon ${levelLabel(id)}`;
     tables = (
       <div className="table-group">
         <h4>d20</h4>
         <table className="turn-table compact">
           <thead><tr><th>Roll</th><th>Monster</th><th>HD</th><th>NA</th></tr></thead>
           <tbody>
-            {DUNGEON_LEVEL_1.map((e, i) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                <td><MonsterLink name={e.name} /></td>
-                <td>{a.byName(e.name)?.hd ?? "\u2014"}</td>
-                <td>{e.na}</td>
-              </tr>
-            ))}
+            {DUNGEON_LEVELS[id].map((e, i) => {
+              const r = resolveTableName(e.name, a.byName);
+              const hd = r.kind === "one" ? a.byName(r.name)?.hd : r.kind === "npc" || r.kind === "none" ? undefined : "Varies";
+              return (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td><MonsterLink name={e.name} /></td>
+                  <td>{hd ?? "\u2014"}</td>
+                  <td>{e.na}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -224,23 +250,26 @@ function ResultModal({
   result,
   busy,
   onClose,
+  onChoose,
   onReroll,
   onAddEncounter,
 }: {
   result: RandResult;
   busy: boolean;
   onClose: () => void;
+  onChoose: (name: string) => void;
   onReroll: () => void;
   onAddEncounter: Props["onAddEncounter"];
 }) {
   const a = useActions();
   const [hidden, setHidden] = useState(false);
-  const { chain, monsterName, qty, hp } = result;
-  const monster = a.byName(monsterName);
+  const { chainText, cell, monsterName, options, pickedBy, npc, qty, hp } = result;
+  const monster = monsterName ? a.byName(monsterName) : undefined;
+  const choosing = !monster && options.length > 0;
 
   return (
     <Modal
-      title={monsterName}
+      title={monster ? monster.name : cell}
       onClose={onClose}
       footer={
         <>
@@ -257,12 +286,8 @@ function ResultModal({
       }
     >
       <p className="roll-chain" style={{ marginTop: 0 }}>
-        {result.source}:{" "}
-        {chain.d8 !== undefined ? (
-          <>d8 &rarr; <b>{chain.d8}</b> (Sub-table {chain.subKey}, {chain.category}) &middot; d12 &rarr; <b>{chain.d12}</b></>
-        ) : (
-          <>d20 &rarr; <b>{chain.d20}</b></>
-        )}
+        {chainText} &rarr; <b>{cell}</b>
+        {pickedBy && <> &middot; {pickedBy}</>}
       </p>
 
       <div className="result-stats">
@@ -280,11 +305,24 @@ function ResultModal({
             <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> Hidden from players
           </label>
         </>
+      ) : choosing ? (
+        <>
+          <p className="field-label">Which one?</p>
+          <div className="pick-list">
+            {options.map((n) => {
+              const m = a.byName(n);
+              return (
+                <button className="pick-opt" key={n} disabled={busy} onClick={() => onChoose(n)}>
+                  <span>{n}</span><b>{m ? `HD ${m.hd}` : ""}</b>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : npc ? (
+        <p className="not-loaded">An NPC adventuring party. Build it with the Adventuring Parties rules (OSE Classic Monsters, p. 76).</p>
       ) : (
-        <p className="not-loaded">
-          Full stats for this monster are not in the starter roster yet - only the name
-          {qty !== null ? " and Number Appearing" : ""} came from the real table.
-        </p>
+        <p className="not-loaded">No stat block for this entry.</p>
       )}
     </Modal>
   );

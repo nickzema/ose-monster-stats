@@ -2,6 +2,10 @@ import type { MouseEvent, ReactNode } from "react";
 import { useActions } from "../context";
 import { hpFormula, rollAttack, rollHpBanner, rollMorale } from "../rolls";
 import type { Monster, SaveKey } from "../types";
+import { resolveTableName } from "../resolve";
+
+/** Necrotic Gnome's treasure-by-type generator; to be replaced by our own generator later. */
+const TREASURE_URL = "https://oldschoolessentials.necroticgnome.com/generators/treasure-by-type-generator";
 
 export const SAVES: [SaveKey, string][] = [
   ["D", "Death"],
@@ -23,7 +27,7 @@ export function D20Icon() {
 export function CompactStats({ m, showBonus = false }: { m: Monster; showBonus?: boolean }) {
   return (
     <div className="compact-row" style={{ marginBottom: 8 }}>
-      <div className="compact-cell"><div className="compact-chip">AC</div><div className="compact-val">{m.ac} [{m.acAsc}]</div></div>
+      <div className="compact-cell"><div className="compact-chip">AC</div><div className="compact-val">{m.acText?.startsWith("No hit") ? "\u2014" : `${m.ac} [${m.acAsc}]${m.acText ? "*" : ""}`}</div></div>
       <div className="compact-cell"><div className="compact-chip">HD</div><div className="compact-val">{m.hd}</div></div>
       <div className="compact-cell">
         <div className="compact-chip">THAC0</div>
@@ -48,23 +52,24 @@ export function MonsterCard({ m, showActions = true, inPopup = false }: { m: Mon
       {m.flavor && <p className="flavor">{m.flavor}</p>}
       <CompactStats m={m} showBonus />
       <div className="statline">
+        {m.acText && <StatRow chip="AC">{m.acText}</StatRow>}
         <StatRow chip="Att" onClick={() => a.runRoll(() => rollAttack(m, t.combat))}>{m.att}</StatRow>
         <StatRow chip="MV">{m.mv}</StatRow>
         <StatRow chip="SV" onClick={(e) => pop(e, "saves")}>
-          {SAVES.map(([k]) => `${k}${m.sv[k]}`).join("  ")}
+          {SAVES.map(([k]) => `${k}${m.sv[k]}`).join("  ")}{m.svNote ? `  (${m.svNote})` : ""}
         </StatRow>
-        <StatRow chip="ML" onClick={() => a.runRoll(() => rollMorale(m, t.combat))}>{m.ml}</StatRow>
+        <StatRow chip="ML" onClick={() => a.runRoll(() => rollMorale(m, t.combat))}>{m.mlText ?? m.ml}</StatRow>
         <StatRow chip="AL">{m.al}</StatRow>
-        <StatRow chip="TT">{m.tt}</StatRow>
+        <StatRow chip="XP">{m.xpText ?? m.xp.toLocaleString()}</StatRow>
         <StatRow chip="NA" onClick={(e) => pop(e, "na")}>{m.naDungeon} ({m.naWild})</StatRow>
+        <StatRow chip="TT" href={TREASURE_URL}>{m.tt}</StatRow>
         <StatRow chip="HP" onClick={() => a.runRoll(() => rollHpBanner(m, t.hp))}>{hpFormula(m)} (avg {m.avgHp})</StatRow>
       </div>
 
       {m.abilities.map((ab, i) => (
-        <div className="ability-block" key={i}>
-          <span className="arrow">&#9656;</span> <b>{ab.name}:</b>
-          <p>{ab.text}</p>
-        </div>
+        <p className="ability-block" key={i}>
+          <span className="arrow">&#9656;</span> {ab.name && <b>{ab.name}:</b>} {ab.text}
+        </p>
       ))}
 
       {m.spells.length > 0 && (
@@ -92,11 +97,13 @@ export function MonsterCard({ m, showActions = true, inPopup = false }: { m: Mon
   );
 }
 
-/** One stat line: a black label chip (clickable when the stat rolls) and its value. */
-function StatRow({ chip, onClick, children }: { chip: string; onClick?: (e: MouseEvent<HTMLButtonElement>) => void; children: ReactNode }) {
+/** One stat line: a black label chip (clickable when the stat rolls or links) and its value. */
+function StatRow({ chip, onClick, href, children }: { chip: string; onClick?: (e: MouseEvent<HTMLButtonElement>) => void; href?: string; children: ReactNode }) {
   return (
     <div className="stat-row">
-      {onClick ? (
+      {href ? (
+        <a className="stat-chip roll" href={href} target="_blank" rel="noopener noreferrer" data-tip="Treasure generator" onClick={(e) => e.stopPropagation()}>{chip}</a>
+      ) : onClick ? (
         <button className="stat-chip roll" onClick={(e) => { e.stopPropagation(); onClick(e); }}>{chip}</button>
       ) : (
         <span className="stat-chip">{chip}</span>
@@ -109,7 +116,8 @@ function StatRow({ chip, onClick, children }: { chip: string; onClick?: (e: Mous
 /** A monster name in an encounter table: linked (hover preview, tap to pin) when stats are loaded. */
 export function MonsterLink({ name }: { name: string }) {
   const a = useActions();
-  if (!a.byName(name)) return <>{name}</>;
+  const r = resolveTableName(name, a.byName);
+  if (r.kind === "npc" || r.kind === "none") return <>{name}</>;
   return (
     <span
       className="mon-link"

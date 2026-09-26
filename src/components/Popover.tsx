@@ -5,6 +5,7 @@ import type { PopoverState } from "../context";
 import { rollNa, rollSave } from "../rolls";
 import type { EncounterEntry, Monster } from "../types";
 import { CompactStats, SAVES } from "./MonsterCard";
+import { namesOf, resolveTableName } from "../resolve";
 
 interface Props {
   state: PopoverState;
@@ -51,20 +52,40 @@ export default function Popover({ state, encounter, onSetHp }: Props) {
   let body: ReactNode = null;
 
   if (state.kind === "monster") {
-    const m = a.byName(state.name);
-    if (!m) return null;
-    body = (
-      <>
-        <h4>{m.name}</h4>
-        <CompactStats m={m} />
-        {state.pinned && (
-          <div className="rand-add-row">
-            <button className="btn text" onClick={() => { a.closePopover(); a.openCard(m.name); }}>View Card</button>
-            <button className="btn" onClick={() => { a.closePopover(); a.openAdd(m); }}>Add to Encounter</button>
+    const r = resolveTableName(state.name, a.byName);
+    const m = r.kind === "one" ? a.byName(r.name) : undefined;
+    const group = namesOf(r);
+    if (m) {
+      body = (
+        <>
+          <h4>{m.name}</h4>
+          <CompactStats m={m} />
+          {state.pinned && (
+            <div className="rand-add-row">
+              <button className="btn text" onClick={() => { a.closePopover(); a.openCard(m.name); }}>View Card</button>
+              <button className="btn" onClick={() => { a.closePopover(); a.openAdd(m); }}>Add to Encounter</button>
+            </div>
+          )}
+        </>
+      );
+    } else if (group.length) {
+      body = (
+        <>
+          <h4>{state.name}</h4>
+          {r.kind === "dice" && <p className="caption" style={{ margin: "0 0 6px" }}>Rolled {r.dice} when this comes up.</p>}
+          <div className="pick-list">
+            {group.map((n) => {
+              const gm = a.byName(n);
+              return (
+                <button className="pick-opt" key={n} onClick={() => { a.closePopover(); a.openCard(n); }}>
+                  <span>{n}</span><b>{gm ? `HD ${gm.hd}` : ""}</b>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </>
-    );
+        </>
+      );
+    } else return null;
   } else if (state.kind === "hp") {
     const entry = encounter.find((e) => e.id === state.entryId);
     const h = entry?.hp[state.index];

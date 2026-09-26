@@ -33,7 +33,7 @@ export default function Modal({ title, onClose, footer, wide, children }: Props)
 export function BrandFooter() {
   return (
     <div className="brand-footer">
-      <img src="/zemaria-icon.png" alt="" />
+      <span className="brand-mark" aria-hidden="true" />
       <span>Another Zemaria product</span>
     </div>
   );

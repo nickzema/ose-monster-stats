@@ -66,8 +66,16 @@ export default function EditModal({ base, existingNames, onCancel, onSave }: Pro
     const hd = f.hd.trim() || start.hd;
     const thac0 = int(f.thac0, start.thac0);
     const bonus = 19 - thac0;
+    // Book notes only stay while the stat they describe is unchanged.
+    const { acText, mlText, xpText, svNote, ...rest } = start;
+    const same = (v: string, n: number) => int(v, n) === n;
+    const savesSame = (["D", "W", "P", "B", "S"] as SaveKey[]).every((k) => same(f.sv[k], start.sv[k]));
     onSave({
-      ...start,
+      ...rest,
+      ...(acText && same(f.ac, start.ac) && same(f.acAsc, start.acAsc) ? { acText } : {}),
+      ...(mlText && same(f.ml, start.ml) ? { mlText } : {}),
+      ...(xpText && same(f.xp, start.xp) ? { xpText } : {}),
+      ...(svNote && savesSame ? { svNote } : {}),
       name,
       hd,
       ...parseHd(hd),

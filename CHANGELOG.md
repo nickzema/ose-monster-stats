@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 — Full Bestiary & Encounter Tables
+- Every monster in OSE Classic Monsters (233 entries; variable-HD monsters split per HD / power level).
+- Every encounter table: dungeon levels 1 to 8+, all 10 wilderness terrains, all sub-tables.
+- Table entries link to their monsters; hydras roll heads by the book's dice, and entries like
+  Shark or Water Termite let the DM choose which kind.
+- TT links to the Necrotic Gnome treasure-by-type generator.
+- Cards show the book's full AC, morale, XP, and saves-as notes; abilities in book style.
+- Fixes from checking against the book: Killer Bee dungeon NA is 1d6; several wilderness Animal
+  columns and "Pterodactyl" corrected.
+- Shared styles now come from zemaria-ui.
+
 ## 0.3.2 — Party Sheet Congruency
 - Header matches OSE Character Sheets: title row with ?, gear, and + New; tabs below; same sizes, spacing, and tooltips.
 

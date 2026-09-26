@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActionsContext } from "./context";
 import type { Actions, PopoverState } from "./context";
-import { BASE_MONSTERS } from "./data/monsters";
+import { BASE_MONSTERS, RENAMED } from "./data/monsters";
 import { rollHpFor } from "./rolls";
 import { useEncounter, useLocal } from "./store";
 import type { BannerData, Monster, Settings } from "./types";
@@ -16,7 +16,7 @@ import RandomScreen from "./components/RandomScreen";
 
 type Screen = "library" | "encounter" | "random";
 
-const STARTER_NAMES = BASE_MONSTERS.map((m) => m.name);
+const STARTER_NAMES = ["Cockatrice", "Goblin", "Hobgoblin", "Killer Bee", "Kobold", "Normal Wolf", "Ogre", "Orc", "Owl Bear", "Skeleton", "Troll", "Zombie"];
 const DEFAULT_SETTINGS: Settings = {
   initiativeTracker: false,
   clash: false,
@@ -55,6 +55,11 @@ export default function App() {
 
   const monsters = useMemo(() => [...BASE_MONSTERS, ...customs], [customs]);
   const byNameMap = useMemo(() => new Map(monsters.map((m) => [m.name, m])), [monsters]);
+
+  // One-time rename of library entries saved by earlier versions (e.g. "Wolf" -> "Normal Wolf").
+  useEffect(() => {
+    if (libraryNames.some((n) => RENAMED[n])) setLibraryNames((prev) => [...new Set(prev.map((n) => RENAMED[n] ?? n))]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const customNames = useMemo(() => new Set(customs.map((m) => m.name)), [customs]);
 
   const showBanner = (b: BannerData) => {
@@ -89,7 +94,7 @@ export default function App() {
 
   const actions: Actions = {
     targets: { check: settings.checkTarget, hp: settings.hpTarget, combat: settings.combatTarget },
-    byName: (name) => byNameMap.get(name),
+    byName: (name) => byNameMap.get(RENAMED[name] ?? name),
     isInLibrary: (name) => libraryNames.includes(name),
     addToLibrary: (name) => {
       setLibraryNames((prev) => (prev.includes(name) ? prev : [...prev, name]));

@@ -1,66 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Oswald:wght@500;600;700&family=Source+Serif+4:ital,wght@0,400;0,700;1,400;1,600&display=swap');
-/* Ported from monster-stat-card-mockup.html, which follows the character sheet's visual system. */
-:root{
-  --ink:#111111; --paper:#FCFBF8; --chip-text:#F7F5EE; --caption:#3a3a3a; --danger:#a11414;
-}
-*{ box-sizing:border-box; }
-html,body,#root{ margin:0; padding:0; height:100%; }
-body{
-  font-family:'Source Serif 4', Georgia, serif; color:var(--ink);
-  background-color:#C7CCD1;
-  background-image:
-    linear-gradient(#b3b9bf 1px, transparent 1px),
-    linear-gradient(90deg, #b3b9bf 1px, transparent 1px);
-  background-size:16px 16px;
-}
-h3{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:17px; text-transform:uppercase; margin:0 0 6px; }
-h4{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:14px; text-transform:uppercase; margin:0 0 5px; }
-.caption{ font-family:'Source Serif 4', serif; font-style:italic; font-size:11px; color:var(--caption); line-height:1.3; margin:2px 0 8px; }
+/* Shared Zemaria styles come from zemaria-ui/zemaria.css (imported first in main.tsx).
+   This file is Monster Library-specific layout, plus a few deliberate overrides below. */
 
-.btn{ font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; letter-spacing:0.03em; text-transform:uppercase; background:var(--ink); color:var(--chip-text); border:none; padding:9px 10px; cursor:pointer; }
-.btn.text{ background:none; border:none; color:var(--ink); font-weight:600; font-size:12px; letter-spacing:0.03em; text-transform:uppercase; padding:4px 0; cursor:pointer; font-family:'Oswald',sans-serif; }
+/* Monster Library tokens (shared tokens come from zemaria-ui) */
+:root{ --danger: var(--hp-dead); }
+h4{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:14px; text-transform:uppercase; margin:0 0 5px; }
 .btn.small{ padding:6px 8px; font-size:10.5px; }
 .btn.block{ display:block; width:100%; text-align:center; padding:12px; font-size:13px; }
 .btn.back{ display:inline-flex; align-items:center; gap:4px; margin-bottom:10px; }
 .btn.outline{ background:var(--paper); color:var(--ink); border:1.5px solid var(--ink); }
-
-/* Icon circle buttons - Help (?) and Settings (gear), same visual family so they read
-   as a matched pair. Character Sheet app's existing "?" help button uses this same shape. */
-.icon-circle{
-  width:30px; height:30px; border-radius:50%; border:1.5px solid var(--ink); background:var(--paper);
-  color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;
-}
-.icon-circle:hover{ background:var(--ink); color:var(--chip-text); }
-.icon-circle svg{ width:16px; height:16px; }
-.icon-circle svg path, .icon-circle svg circle{ fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
-
-.chip-row{ display:flex; border:1.5px solid var(--ink); margin-bottom:1px; min-width:0; }
-.chip{ background:var(--ink); color:var(--chip-text); font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; letter-spacing:0.03em; text-transform:uppercase; padding:6px 8px; display:flex; align-items:center; flex-shrink:0; min-width:46px; justify-content:center; border:none; }
-.box{ flex:1; border-left:1.5px solid var(--ink); display:flex; min-width:0; background:var(--paper); }
 .box input, .box select{ flex:1; border:none; background:transparent; font-family:'Source Serif 4', serif; font-size:13px; padding:5px 7px; color:var(--ink); min-width:0; }
-
-/* Compact stat readouts */
-.compact-row{ display:flex; gap:3px; }
-.compact-cell{ flex:1; min-width:0; border:1.5px solid var(--ink); text-align:center; background:var(--paper); }
-.compact-chip{ background:var(--ink); color:var(--chip-text); font-family:'Oswald',sans-serif; font-weight:600; font-size:9px; letter-spacing:0.03em; text-transform:uppercase; padding:2px 0; }
-.compact-val{ font-family:'Source Serif 4', serif; font-size:12px; font-weight:700; padding:3px 2px; white-space:nowrap; }
-
-.seg-toggle{ display:flex; align-items:stretch; height:34px; border:1.5px solid var(--ink); background:var(--paper); flex:1; }
-.seg-btn{ flex:1; display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.03em; background:var(--paper); color:var(--ink); border:none; white-space:nowrap; cursor:pointer; }
 .seg-btn + .seg-btn{ border-left:1.5px solid var(--ink); }
-.seg-btn.active{ background:var(--ink); color:var(--chip-text); }
-
-.status-box{ display:flex; align-items:center; gap:7px; height:30px; padding:0 10px; border:1.5px solid var(--ink); background:var(--paper); font-family:'Oswald', sans-serif; font-size:12px; white-space:nowrap; }
-.status-label{ color:var(--caption); text-transform:uppercase; font-size:10.5px; font-weight:500; letter-spacing:0.03em; }
-.status-value{ font-weight:700; }
-
-.empty-state{ font-family:'Source Serif 4', serif; font-style:italic; color:var(--caption); padding:14px 0; text-align:center; font-size:13px; }
-
-.turn-table{ border-collapse:collapse; width:100%; font-size:11px; margin-top:4px; }
-.turn-table th, .turn-table td{ border:1px solid var(--ink); text-align:left; padding:3px 6px; }
-.turn-table th{ background:var(--ink); color:var(--chip-text); font-family:'Oswald',sans-serif; font-weight:600; text-align:center; }
 .turn-table td:first-child{ text-align:center; width:30px; font-weight:700; }
-.turn-table tr:nth-child(even) td{ background:rgba(0,0,0,0.05); }
 .turn-table.compact{ font-size:10px; }
 .turn-table.compact th, .turn-table.compact td{ padding:2px 4px; line-height:1.25; }
 .turn-table.compact td:first-child{ width:20px; }
@@ -294,18 +244,6 @@ button.d20-zone:disabled{ opacity:0.5; cursor:default; }
 .result-stats .compact-cell{ flex:1; }
 .compact-val.big{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:22px; padding:4px; }
 .enc-hp-chip.static{ cursor:default; }
-
-/* Brand footer (matches OSE Character Sheets) */
-.brand-footer{
-  display:flex; align-items:center; justify-content:center; gap:6px;
-  margin-top:22px; padding-top:12px; border-top:1px solid rgba(17,17,17,0.15);
-  opacity:0.55;
-}
-.brand-footer img{ width:16px; height:16px; }
-.brand-footer span{
-  font-family:'Oswald',sans-serif; font-weight:600; font-size:10px; text-transform:uppercase;
-  letter-spacing:0.06em; color:var(--ink);
-}
 .modal-head + .modal-actions{ border-top:none; }
 .modal-body .not-loaded{ font-size:13px; line-height:1.4; }
 .bar-add{ flex-shrink:0; padding:5px 9px; font-size:10px; }
@@ -320,8 +258,8 @@ button.d20-zone:disabled{ opacity:0.5; cursor:default; }
   font-family:'Oswald',sans-serif; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
   padding:3px 0; border:none;
 }
-button.stat-chip{ cursor:pointer; transition:transform 0.12s, box-shadow 0.12s; }
-button.stat-chip:hover{ box-shadow:0 3px 8px rgba(0,0,0,0.35); transform:translateY(-1px); }
+button.stat-chip, a.stat-chip{ text-decoration:none; cursor:pointer; transition:transform 0.12s, box-shadow 0.12s; }
+button.stat-chip:hover, a.stat-chip:hover{ box-shadow:0 3px 8px rgba(0,0,0,0.35); transform:translateY(-1px); }
 .stat-val{ flex:1; min-width:0; white-space:pre-wrap; }
 .pick-list{ display:flex; flex-direction:column; gap:4px; margin-top:6px; }
 .pick-opt{
@@ -343,35 +281,22 @@ button.stat-chip:hover{ box-shadow:0 3px 8px rgba(0,0,0,0.35); transform:transla
 }
 .hide-toggle.on{ background:var(--caption); border-color:var(--caption); color:#fff; }
 .btn.text.danger-text{ color:var(--danger); }
-/* Match the character sheet's bold topbar icons */
-.icon-q{ font-family:'Alfa Slab One', serif; font-size:14px; line-height:1; }
-.icon-circle svg path, .icon-circle svg circle{ stroke-width:2.2; }
 
 /* ---------- Congruency with OSE Character Sheets (values copied from its styles.css) ---------- */
 .page{ padding:16px 18px 20px; }
-.btn{ padding:8px 10px; }
-h3{ font-size:19px; margin:0 0 8px; }
-.list-toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.list-toolbar h2{ font-family:'Alfa Slab One', serif; font-weight:400; font-size:19px; text-transform:uppercase; margin:0; }
-.list-toolbar-right{ display:flex; align-items:center; gap:10px; }
-.help-btn{
-  width:22px; height:22px; border-radius:50%; border:1.5px solid var(--ink); background:#FCFBF8;
-  color:var(--ink); font-family:'Oswald',sans-serif; font-weight:700; font-size:12px; cursor:pointer;
-  padding:0; line-height:1; display:flex; align-items:center; justify-content:center; flex-shrink:0;
-}
-.help-btn:hover{ background:var(--ink); color:var(--chip-text); }
 .gear-btn svg{ width:13px; height:13px; }
 .gear-btn svg path, .gear-btn svg circle{ fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; }
 .seg-toggle.tabs{ flex:none; margin-bottom:14px; }
 
-/* Delayed tooltips, same as the character sheet */
-[data-tip]{ position:relative; }
-[data-tip]::after{
-  content: attr(data-tip);
-  position:absolute; top:100%; left:50%; transform:translateX(-50%) translateY(6px);
-  background:var(--ink); color:var(--chip-text); font-family:'Oswald',sans-serif;
-  font-size:11px; font-weight:500; letter-spacing:0.02em; text-transform:none;
-  padding:5px 8px; white-space:nowrap; border-radius:3px; pointer-events:none;
-  opacity:0; z-index:50; transition: opacity 0s linear 0s;
-}
-[data-tip]:hover::after{ opacity:1; transition: opacity 0.15s ease-in 0.5s; }
+/* ---------- Deliberate overrides of shared primitives (layout needs, not a different look) ---------- */
+.seg-toggle{ flex:1; }
+.seg-btn{ flex:1; justify-content:center; }
+.compact-cell{ background:var(--paper); }
+.compact-val.big{ font-family:'Alfa Slab One', serif; font-size:22px; padding:4px; }
+.table-group .turn-table td{ text-align:left; padding:3px 6px; }
+.table-group .turn-table td:first-child{ text-align:center; }
+/* Top-of-window tooltips open downward so they aren't clipped by the popover edge */
+.list-toolbar [data-tip]::after{ bottom:auto; top:100%; transform:translateX(-50%) translateY(6px); }
+/* Abilities read like the book: ▸ Name: text, one compact paragraph each */
+p.ability-block{ font-family:'Source Serif 4', serif; font-size:12px; line-height:1.4; margin:0 0 6px; }
+p.ability-block b{ font-weight:700; }

@@ -10,7 +10,9 @@ export function hpFormula(m: Monster): string {
 /** OSE Hit Dice text -> dice + average. "6+3*" -> 6d8+3, "1-1" -> 1d8-1, "1/2" -> 1d4. */
 export function parseHd(hd: string): { hpDice: HpDice; avgHp: number } {
   const clean = hd.replace(/\*/g, "").replace(/\s+/g, "");
-  if (/^1\/2$/.test(clean)) return { hpDice: { special: "1d4" }, avgHp: 2 };
+  if (/^(1\/2|½)$/.test(clean)) return { hpDice: { special: "1d4" }, avgHp: 2 };
+  const flat = clean.match(/^(\d+)hp$/i);
+  if (flat) return { hpDice: { special: flat[1] }, avgHp: parseInt(flat[1], 10) };
   const m = clean.match(/^(\d+)([+-]\d+)?$/);
   if (!m) return { hpDice: { n: 1, mod: 0 }, avgHp: 4 };
   const n = parseInt(m[1], 10);
@@ -23,7 +25,7 @@ export async function rollHpFor(m: Monster, qty: number, target: RollTarget): Pr
   const f = hpFormula(m);
   const label = cleanLabel(`${m.name} HP`);
   const notation = qty === 1 ? `${f} #${label}` : `${qty}#${f} #${label}`;
-  if (qty > 100) {
+  if (qty > 100 || !hasDice(f)) {
     return { hp: Array.from({ length: qty }, () => Math.max(1, localExpr(f))), local: true };
   }
   const out = await roll(notation, target, qty);
@@ -53,6 +55,10 @@ export async function rollSave(m: Monster, label: string, needed: number, mod: n
 
 export async function rollAttack(m: Monster, target: RollTarget): Promise<BannerData> {
   const name = cleanLabel(m.name);
+  if (!m.dmg || !hasDice(m.dmg)) {
+    const out = await roll(`1d20 #${name} Attack`, target);
+    return { label: `${m.name} Attack`, num: out.total, detail: `To-hit d20: ${out.total} (THAC0 ${m.thac0}). ${m.att}`, success: null, local: out.local };
+  }
   const out = await roll(`1d20 #${name} Attack, ${toNotation(m.dmg)} #Damage`, target, 2);
   const [d20, dmg] = out.rows;
   return {
@@ -65,12 +71,13 @@ export async function rollAttack(m: Monster, target: RollTarget): Promise<Banner
 }
 
 export async function rollMorale(m: Monster, target: RollTarget): Promise<BannerData> {
+  if (!m.ml) return { label: `${m.name} Morale`, num: "—", detail: `Morale: ${m.mlText ?? "varies"}.`, success: null };
   const out = await roll(`2d6 #${cleanLabel(`${m.name} Morale`)}`, target);
   const holds = out.total <= m.ml;
   return {
     label: `${m.name} Morale`,
     num: out.total,
-    detail: `2d6 vs ML ${m.ml}. ${holds ? "Holds." : "Breaks/flees."}`,
+    detail: `2d6 vs ML ${m.mlText ?? m.ml}. ${holds ? "Holds." : "Breaks/flees."}`,
     success: holds,
     local: out.local,
   };
